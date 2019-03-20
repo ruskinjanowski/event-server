@@ -16,20 +16,19 @@ import com.neovisionaries.ws.client.WebSocket;
 import com.neovisionaries.ws.client.WebSocketAdapter;
 import com.neovisionaries.ws.client.WebSocketException;
 import com.neovisionaries.ws.client.WebSocketFactory;
-import com.trader.controller.api.Api;
+import com.trader.api.AccountDetails;
+import com.trader.api.AccountDetails.LunoDetails;
+import com.trader.api.Api;
+import com.trader.definitions.TraderFolders;
+import com.trader.definitions.TraderFolders.ProgramName;
+import com.trader.definitions.TraderURIs;
 import com.trader.eventserver.model.Credentials;
-
-import arbtrader.controller.TraderURIs;
-import arbtrader.credentials.AccountDetails;
-import arbtrader.credentials.AccountDetails.LunoDetails;
-import arbtrader.credentials.EMarketType;
-import arbtrader.credentials.TraderFolders;
-import arbtrader.credentials.TraderFolders.ProgramName;
+import com.trader.model.MarketType;
 
 public class Main {
 
 	static Server server;
-	public static final EMarketType market = EMarketType.ZAR_BTC;
+	public static final MarketType market = MarketType.EUR_BTC;
 
 	public static void main(String[] args) throws IOException, WebSocketException {
 
@@ -51,11 +50,11 @@ public class Main {
 		Credentials creds = new Credentials(ld.key, ld.secret);
 
 		String url;// wss://ws.luno.com/api/1/stream/ETHXBT
-		if (market.equals(EMarketType.ZAR_BTC)) {
+		if (market.equals(MarketType.ZAR_BTC)) {
 			url = "wss://ws.luno.com/api/1/stream/XBTZAR";
-		} else if (market.equals(EMarketType.EUR_BTC)) {
+		} else if (market.equals(MarketType.EUR_BTC)) {
 			url = "wss://ws.luno.com/api/1/stream/XBTEUR";
-		} else if (market.equals(EMarketType.NGN_BTC)) {
+		} else if (market.equals(MarketType.NGN_BTC)) {
 			url = "wss://ws.luno.com/api/1/stream/XBTNGN";
 		} else {
 			throw new IllegalStateException();

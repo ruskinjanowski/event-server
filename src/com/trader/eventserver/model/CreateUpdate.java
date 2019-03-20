@@ -1,6 +1,6 @@
 package com.trader.eventserver.model;
 
-import arbtrader.model.Order;
+import com.trader.model.Order;
 
 public class CreateUpdate {
 	public final String order_id;

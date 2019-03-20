@@ -14,9 +14,8 @@ import javax.websocket.Session;
 import javax.websocket.server.ServerEndpoint;
 
 import com.google.gson.Gson;
-
-import arbtrader.model.Events;
-import arbtrader.model.OrderListenRequest;
+import com.trader.model.Events;
+import com.trader.model.OrderListenRequest;
 
 @ServerEndpoint(value = "/events", decoders = MessageDecoder.class, encoders = MessageEncoder.class)
 public class EventServerEndpoint {
@@ -70,8 +69,6 @@ public class EventServerEndpoint {
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
-
-		// Main.getLunoMarket().addListenOrder(new );
 		return null;
 	}
 

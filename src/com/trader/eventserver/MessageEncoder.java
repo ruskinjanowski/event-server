@@ -5,15 +5,14 @@ import javax.websocket.Encoder;
 import javax.websocket.EndpointConfig;
 
 import com.google.gson.Gson;
+import com.trader.model.Spread;
 
-import arbtrader.model.SpreadChanged;
-
-public class MessageEncoder implements Encoder.Text<SpreadChanged> {
+public class MessageEncoder implements Encoder.Text<Spread> {
 
 	private static Gson gson = new Gson();
 
 	@Override
-	public String encode(SpreadChanged message) throws EncodeException {
+	public String encode(Spread message) throws EncodeException {
 		return gson.toJson(message);
 	}
 

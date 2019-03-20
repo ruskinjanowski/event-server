@@ -5,8 +5,7 @@ import javax.websocket.Decoder;
 import javax.websocket.EndpointConfig;
 
 import com.google.gson.Gson;
-
-import arbtrader.model.OrderListenRequest;
+import com.trader.model.OrderListenRequest;
 
 public class MessageDecoder implements Decoder.Text<OrderListenRequest> {
 

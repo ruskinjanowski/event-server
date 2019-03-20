@@ -11,20 +11,21 @@ import java.util.TreeMap;
 import org.knowm.xchange.dto.marketdata.Ticker;
 
 import com.google.gson.Gson;
-import com.trader.controller.api.Api;
+import com.trader.api.Api;
 import com.trader.eventserver.model.OrderBook;
 import com.trader.eventserver.model.TradeUpdate;
 import com.trader.eventserver.model.Updates;
-
-import arbtrader.model.Events;
-import arbtrader.model.Order;
-import arbtrader.model.OrderCancelled;
-import arbtrader.model.SpreadChanged;
+import com.trader.model.Events;
+import com.trader.model.Order;
+import com.trader.model.OrderCancelled;
+import com.trader.model.Spread;
 
 /**
- * Class to keep track of the state of all orders for a given market on Luno.
- * The purpose of this class is to fire price change events as soon as there are
- * no more open orders at either the current buying or current selling price.
+ * This class processes all data streamed over a Luno Websocket
+ * (https://www.luno.com/en/api). The functionality this class provides is to
+ * generate notifications for spread change events and to listen on specific
+ * orders and to generate created, cancelled and complete events for these
+ * orders of interest.
  *
  */
 public class LunoMarket {
@@ -32,14 +33,17 @@ public class LunoMarket {
 	public static final LunoMarket INSTANCE = new LunoMarket();
 	private static final Gson gson = new Gson();
 
+	/**
+	 * Orders of interest to generate create, cancelled and complete events for.
+	 */
 	private Set<String> listenOrders = new HashSet<>();
 
 	/**
-	 * All orders.
+	 * All currently open orders.
 	 */
 	final Map<String, Order> orders = new HashMap<>();
 	/**
-	 * Sequence orders were added in. Used to keep track
+	 * Sequence orders were added in. <id, sequence number>
 	 */
 	final Map<String, Long> orderSequence = new HashMap<>();
 	/**
@@ -61,10 +65,16 @@ public class LunoMarket {
 	 */
 	final Set<String> bids = new HashSet<>();
 
+	/**
+	 * Sequence of message reporrted by Luno
+	 */
 	long sequence = -1;
+	/**
+	 * Number of order received by this class.
+	 */
 	long orderNum = 0;
 
-	SpreadChanged latestSpread;
+	Spread latestSpread;
 
 	public LunoMarket() {
 		new CheckThread().start();
@@ -87,7 +97,7 @@ public class LunoMarket {
 			addOrder(bid, true);
 		}
 
-		latestSpread = new SpreadChanged(priceAsks.firstKey(), priceBids.lastKey());
+		latestSpread = new Spread(priceAsks.firstKey(), priceBids.lastKey());
 	}
 
 	private void addOrder(Order o, boolean isBid) {
@@ -136,7 +146,7 @@ public class LunoMarket {
 		processCreateUpdates(u);
 		processTradeUpdates(u);
 
-		fireSpreadChangedIfNeeded();
+		fireSpreadIfNeeded();
 	}
 
 	public synchronized void addUpdates(String json) {
@@ -234,7 +244,7 @@ public class LunoMarket {
 		}
 	}
 
-	private void fireSpreadChangedIfNeeded() {
+	private void fireSpreadIfNeeded() {
 
 		// while (priceBids.lastEntry().getValue().isEmpty()) {
 		// priceBids.remove(priceBids.lastKey());
@@ -246,7 +256,7 @@ public class LunoMarket {
 		double ask = priceAsks.firstEntry().getValue().iterator().next().price;
 		double bid = priceBids.lastEntry().getValue().iterator().next().price;
 
-		SpreadChanged pc = new SpreadChanged(ask, bid);
+		Spread pc = new Spread(ask, bid);
 		if (!pc.equals(latestSpread)) {
 			latestSpread = pc;
 			System.out.println("Spread changed: ask: " + pc.priceAsk + " bid: " + pc.priceBid);
@@ -310,6 +320,12 @@ public class LunoMarket {
 		System.out.println("---------");
 	}
 
+	/**
+	 * Add an order for which created, cancelled and complete events will be
+	 * generated.
+	 * 
+	 * @param id the id of the order
+	 */
 	public void addListenOrder(String id) {
 		listenOrders.add(id);
 		if (orders.containsKey(id)) {
@@ -321,7 +337,11 @@ public class LunoMarket {
 		}
 	}
 
-	public SpreadChanged getSpread() {
+	/**
+	 * 
+	 * @return the current spread on this exchange
+	 */
+	public Spread getSpread() {
 		return latestSpread;
 	}
 
@@ -330,7 +350,14 @@ public class LunoMarket {
 		return eq;
 	}
 
-	class CheckThread extends Thread {
+	/**
+	 * This class periodically monitors the spread and compares it with the spread
+	 * reported by the Luno HTTP Api to ensure that this class is still reporting
+	 * the correct spread.
+	 * 
+	 *
+	 */
+	private class CheckThread extends Thread {
 		public CheckThread() {
 			super("CheckThread");
 		}
@@ -343,27 +370,24 @@ public class LunoMarket {
 				} catch (InterruptedException e) {
 					e.printStackTrace();
 				}
-				SpreadChanged s1 = getSpread();
-				SpreadChanged ind = null;
+				Spread s1 = getSpread();
+				Spread ind = null;
 
 				try {
 					Ticker ticker = Api.getMarketDataService(Main.market).getTicker(Main.market.pair);
-					ind = new SpreadChanged(ticker.getAsk().doubleValue(), ticker.getBid().doubleValue());
+					ind = new Spread(ticker.getAsk().doubleValue(), ticker.getBid().doubleValue());
 					sleep(3_000);// in case of network latency
 				} catch (IOException | InterruptedException e) {
 					e.printStackTrace();
 				}
 
-				SpreadChanged s2 = getSpread();
+				Spread s2 = getSpread();
 
 				if (s1.equals(s2) && !s1.equals(ind)) {
 					// error state
 					System.out.println("Error state " + new Date());
 					System.out.println(s1);
 					System.out.println(ind);
-
-					double ask = priceAsks.firstEntry().getValue().iterator().next().price;
-					double bid = priceBids.lastEntry().getValue().iterator().next().price;
 
 					System.out.println("---asks---");
 					for (Order o : priceAsks.firstEntry().getValue()) {
@@ -385,7 +409,6 @@ public class LunoMarket {
 					e.printStackTrace();
 				}
 			}
-
 		}
 	}
 }
