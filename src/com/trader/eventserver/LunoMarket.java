@@ -23,9 +23,9 @@ import com.trader.model.Spread;
 /**
  * This class processes all data streamed over a Luno Websocket
  * (https://www.luno.com/en/api). The functionality this class provides is to
- * generate notifications for spread change events and to listen on specific
- * orders and to generate created, cancelled and complete events for these
- * orders of interest.
+ * identify generate notifications for spread change events and to listen on
+ * specific orders and to generate created, cancelled and complete events for
+ * these orders of interest.
  *
  */
 public class LunoMarket {
@@ -41,29 +41,29 @@ public class LunoMarket {
 	/**
 	 * All currently open orders.
 	 */
-	final Map<String, Order> orders = new HashMap<>();
+	private final Map<String, Order> orders = new HashMap<>();
 	/**
 	 * Sequence orders were added in. <id, sequence number>
 	 */
-	final Map<String, Long> orderSequence = new HashMap<>();
+	private final Map<String, Long> orderSequence = new HashMap<>();
 	/**
 	 * Orders which are currently being filled - one ask and one bid order. <id,
 	 * amount filled in BTC>
 	 */
-	final Map<String, Double> fills = new HashMap<>();
+	private final Map<String, Double> fills = new HashMap<>();
 	/**
 	 * Orders grouped by price.
 	 */
-	final TreeMap<Double, Set<Order>> priceAsks = new TreeMap<>();
-	final TreeMap<Double, Set<Order>> priceBids = new TreeMap<>();
+	private final TreeMap<Double, Set<Order>> priceAsks = new TreeMap<>();
+	private final TreeMap<Double, Set<Order>> priceBids = new TreeMap<>();
 	/**
 	 * Ids of all ask orders.
 	 */
-	final Set<String> asks = new HashSet<>();
+	private final Set<String> asks = new HashSet<>();
 	/**
 	 * Ids of all bid orders.
 	 */
-	final Set<String> bids = new HashSet<>();
+	private final Set<String> bids = new HashSet<>();
 
 	/**
 	 * Sequence of message reporrted by Luno
@@ -136,7 +136,7 @@ public class LunoMarket {
 		return prices;
 	}
 
-	public void addUpdates(Updates u) {
+	private void addUpdates(Updates u) {
 		if (u.sequence != sequence + 1) {
 			new IllegalStateException().printStackTrace();
 			System.exit(0);
@@ -191,51 +191,15 @@ public class LunoMarket {
 		for (TradeUpdate tu : u.trade_updates) {
 			Order o = orders.get(tu.maker_order_id);
 
-			// while (priceBids.lastEntry().getValue().isEmpty()) {
-			// priceBids.remove(priceBids.lastKey());
-			// }
-			// while (priceAsks.firstEntry().getValue().isEmpty()) {
-			// priceAsks.remove(priceAsks.firstKey());
-			// }
-			// sanity check
-			if (bids.contains(tu.maker_order_id)) {
-
-				double bid = priceBids.lastKey();
-				if (bid != o.price) {
-					throw new IllegalStateException();
-				}
-			} else if (asks.contains(tu.maker_order_id)) {
-
-				double ask = priceAsks.firstKey();
-				if (ask != o.price) {
-					throw new IllegalStateException();
-				}
-			} else {
-				throw new IllegalStateException();
-			}
-
 			double fill = fills.containsKey(tu.maker_order_id) ? fills.get(tu.maker_order_id) : 0;
 			double newFill = fill + tu.base;
 			fills.put(tu.maker_order_id, newFill);
 
 			System.out.println("filled: " + fills.get(tu.maker_order_id) + " for volume: " + o.volume);
-			boolean typeBid = bids.contains(o.id);
 
 			if (btcEquals(newFill, o.volume)) {
-
-				// while (priceBids.lastEntry().getValue().isEmpty()) {
-				// priceBids.remove(priceBids.lastKey());
-				// }
-				// while (priceAsks.firstEntry().getValue().isEmpty()) {
-				// priceAsks.remove(priceAsks.firstKey());
-				// }
-
-				// order filled
-				System.out.println("compledted: " + o + " " + typeBid);
-
 				// notify listeners if needed
 				if (listenOrders.contains(o.id)) {
-
 					EventServerEndpoint.broadcast(new Events(null, o, null, null));
 					System.out.println("Order Filled: " + o);
 				}
@@ -245,14 +209,6 @@ public class LunoMarket {
 	}
 
 	private void fireSpreadIfNeeded() {
-
-		// while (priceBids.lastEntry().getValue().isEmpty()) {
-		// priceBids.remove(priceBids.lastKey());
-		// }
-		// while (priceAsks.firstEntry().getValue().isEmpty()) {
-		// priceAsks.remove(priceAsks.firstKey());
-		// }
-
 		double ask = priceAsks.firstEntry().getValue().iterator().next().price;
 		double bid = priceBids.lastEntry().getValue().iterator().next().price;
 
@@ -265,7 +221,6 @@ public class LunoMarket {
 	}
 
 	private void removeOrder(String id) {
-
 		TreeMap<Double, Set<Order>> prices = getListFor(id);
 		Order o = orders.get(id);
 		Set<Order> oset = prices.get(o.price);
@@ -289,7 +244,6 @@ public class LunoMarket {
 	}
 
 	private void printVolumeInQueue(String id) {
-
 		if (orders.containsKey(id)) {
 			System.out.println("already contains: " + id);
 		} else {
@@ -352,8 +306,8 @@ public class LunoMarket {
 
 	/**
 	 * This class periodically monitors the spread and compares it with the spread
-	 * reported by the Luno HTTP Api to ensure that this class is still reporting
-	 * the correct spread.
+	 * reported by the Luno HTTP API to ensure that the LunoMarket class is still
+	 * reporting the correct spread.
 	 * 
 	 *
 	 */
@@ -371,11 +325,11 @@ public class LunoMarket {
 					e.printStackTrace();
 				}
 				Spread s1 = getSpread();
-				Spread ind = null;
+				Spread apiSpread = null;
 
 				try {
 					Ticker ticker = Api.getMarketDataService(Main.market).getTicker(Main.market.pair);
-					ind = new Spread(ticker.getAsk().doubleValue(), ticker.getBid().doubleValue());
+					apiSpread = new Spread(ticker.getAsk().doubleValue(), ticker.getBid().doubleValue());
 					sleep(3_000);// in case of network latency
 				} catch (IOException | InterruptedException e) {
 					e.printStackTrace();
@@ -383,11 +337,11 @@ public class LunoMarket {
 
 				Spread s2 = getSpread();
 
-				if (s1.equals(s2) && !s1.equals(ind)) {
+				if (s1.equals(s2) && !s1.equals(apiSpread)) {
 					// error state
 					System.out.println("Error state " + new Date());
 					System.out.println(s1);
-					System.out.println(ind);
+					System.out.println(apiSpread);
 
 					System.out.println("---asks---");
 					for (Order o : priceAsks.firstEntry().getValue()) {
@@ -399,9 +353,13 @@ public class LunoMarket {
 						System.out.println(o);
 					}
 					System.exit(0);
-				} else {
+				} else if (s1.equals(s2)) {
 					System.out.println(new Date());
-					System.out.println("spread correct: " + s1 + " -- " + ind);
+					System.out.println("unknown: " + s1 + " -- " + s2 + "--" + apiSpread);
+				} else {
+
+					System.out.println(new Date());
+					System.out.println("spread correct: " + s1 + " -- " + apiSpread);
 				}
 				try {
 					Thread.sleep(10 * 60 * 1000);
